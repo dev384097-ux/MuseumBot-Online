@@ -1,7 +1,9 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import os
 import re
 import uuid
+import time
 from database import get_db_connection
 from langdetect import detect, DetectorFactory
 from deep_translator import GoogleTranslator
@@ -9,29 +11,34 @@ from deep_translator import GoogleTranslator
 # For consistent language detection results
 DetectorFactory.seed = 0
 
+# Configuration constants
+MAX_RETRIES = 1
+DEFAULT_RETRY_DELAY = 1.0  # seconds
+MAX_TOKENS = 1000
+MODEL_PRIORITY = [
+    'gemini-1.5-flash',
+    'gemini-flash-latest',
+    'gemini-1.5-flash-latest',
+    'gemini-2.0-flash',
+]
+
 class MuseumChatbot:
     def __init__(self):
-        # Configure Gemini inside init to ensure env vars are loaded
-        api_key = os.getenv("GEMINI_API_KEY")
-        self.model = None
-        if api_key:
-            try:
-                genai.configure(api_key=api_key)
-                # We switch to a more stable model name to avoid the extremely low 20-request daily limit
-                for model_name in ['gemini-2.0-flash', 'gemini-pro-latest', 'gemini-flash-latest']:
-                    try:
-                        self.model = genai.GenerativeModel(model_name)
-                        print(f"DEBUG: Using Gemini model: {model_name}")
-                        break
-                    except:
-                        continue
-            except Exception as e:
-                print(f"WARNING: Gemini configuration failed: {e}")
-        else:
-            print("INFO: GEMINI_API_KEY not found. Operating in Rule-Based Fallback mode.")
-        
+        """Initializes the chatbot engine with a verified AI model."""
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        self.client = None
+        self.model_id = None
         self.booking_marker = "[INIT_BOOKING]"
+        self._init_templates()
         
+        print(f"INFO: Initializing MuseumChatbot Engine...")
+        if not self.api_key:
+            print("WARNING: GEMINI_API_KEY not found. Operating in Rule-Based Fallback mode.")
+        else:
+            self._initialize_ai()
+    
+    def _init_templates(self):
+        """Initializes the static conversational phrases and maps."""
         # Conversational Phrases Library (as suggested by the user)
         self.templates = {
             'greeting': {
@@ -119,7 +126,7 @@ class MuseumChatbot:
                 'pa_latin': "Security sadi priority hai, 24/7 CCTV surveillance hai."
             },
             'unknown': {
-                'en': "I'm currently using my backup brain. Try asking about 'tickets' or 'hours'!",
+                'en': "I'm currently experiencing high traffic. Please try again in a moment.",
                 'hi_native': "क्षमा करें, मुझे समझ नहीं आया। क्या आप 'टिकट' या 'समय' के बारे में पूछ सकते हैं?",
                 'hi_latin': "Thoda clear karenge? Aap mujhse 'tickets' ya 'timings' ke bare mein puch sakte hain.",
                 'ta_native': "என்னிடம் டிக்கெட்டுகள் அல்லது நேரங்களைப் பற்றி கேளுங்கள்!",
@@ -145,65 +152,59 @@ class MuseumChatbot:
             "aadab": ("greeting", "ur")
         }
 
+    def _initialize_ai(self):
+        """Performs a smoke test to select the best available Gemini model."""
+        if not self.api_key:
+            return
+            
+        try:
+            self.client = genai.Client(api_key=self.api_key)
+            for model_name in MODEL_PRIORITY:
+                try:
+                    # Smoke Test: Single-token generation verifies API access and model existence
+                    self.client.models.generate_content(
+                        model=model_name,
+                        contents="ping",
+                        config=types.GenerateContentConfig(max_output_tokens=1)
+                    )
+                    
+                    self.model_id = model_name
+                    print(f"SUCCESS: Verified and selected AI Model: {model_name}")
+                    return # Successfully found a model
+                except Exception as e:
+                    print(f"DEBUG: Model {model_name} failed smoke test: {str(e)}")
+                    continue
+            
+            print("ERROR: All prioritized AI models failed verification. System using fallback mode.")
+            self.client = None # Reset if no models worked
+        except Exception as e:
+            print(f"CRITICAL: AI configuration failure: {e}")
+            self.client = None
+
 
     def _get_system_instructions(self, locked_lang, locked_script):
-        return f"""You are a multilingual museum chatbot for India.
+        """Returns the high-quality, detailed Museum Assistant persona."""
+        return f"""You are an AI-powered Museum Assistant chatbot for an Indian museum.
 
-CRITICAL PRIORITY:
-You MUST strictly follow language and script of the user input.
+ROLE:
+Your role is to help users with ticket booking, museum timings, entry fees, parking, cafeteria services, exhibition details, and historical guidance.
 
-========================
-HIGHEST PRIORITY RULE (GREETING OVERRIDE)
-========================
-If the user message is a greeting, DO NOT use English unless the greeting is English.
-You MUST recognize these greetings and respond EXACTLY in same language:
-- "vanakkam" -> Tamil (Roman)
-- "namaste" -> Hindi (Roman)
-- "sat sri akal" -> Punjabi (Roman)
-- "nomoskar" -> Bengali (Roman)
-- "namaskara" -> Kannada
-- "namaskaram" -> Malayalam
+CAPABILITIES:
+* Provide detailed and informative descriptions of exhibitions, galleries, and historical artifacts.
+* Act like a knowledgeable museum guide, explaining cultural significance and history.
+* Help users explore the museum virtually.
 
-DO NOT translate them to English.
+STRICT RULES:
+1. Focus primarily on museum-related queries. Answer general knowledge ONLY if related to History, Culture, Art, or Exhibits.
+2. If the question is completely unrelated, politely redirect to museum services.
+3. Keep answers clear, engaging, and professional.
+4. [TECHNICAL] If the user exhibits intent to book tickets, you MUST include '[INIT_BOOKING]' at the VERY END. Do NOT ask for dates or counts yourself.
 
-========================
-STRICT RULES
-========================
-1. ALWAYS reply in same language
-2. ALWAYS match same script (Roman vs native)
-3. NEVER default to English
-4. NEVER mix languages
-5. NEVER mix scripts
-6. Keep response short and conversational
-
-========================
-SESSION LOCK
-========================
-If SESSION_LANG is provided, you MUST follow it strictly.
-SESSION_LANG: {locked_lang}
-SESSION_SCRIPT: {locked_script}
-
-========================
-EXAMPLES
-========================
-User: vanakkam  
-Reply: Vanakkam! Naan eppadi help pannalaam?
-
-User: namaste  
-Reply: Namaste! Kaise help kar sakta hoon?
-
-User: sat sri akal  
-Reply: Sat Sri Akal! Tuhadi kiven madad karaan?
-
-User: nomoskar  
-Reply: Nomoskar! Ami kivabe help korte pari?
-
-User: hello  
-Reply: Hello! How can I help you today?
-
-========================
-Now respond correctly to the user input while respecting all rules.
-User: {{input}}"""
+MULTILINGUAL SUPPORT & SESSION LOCK:
+* CRITICAL: Respond in the SAME language and SAME script (Native vs Roman) as the user.
+* SESSION_LANG: {locked_lang}
+* SESSION_SCRIPT: {locked_script}
+* If USER_LANG is not 'en', prioritize these greetings: "vanakkam" (Tamil), "namaste" (Hindi), "sat sri akal" (Punjabi), "nomoskar" (Bengali)."""
 
     def _translate_to_en(self, text):
         # Basic cleanup
@@ -439,55 +440,81 @@ User: {{input}}"""
                     btn_html = f"<div style='margin-top:10px;'><button class='cta-btn' onclick='openPaymentModal({total})'>Proceed to Ledger (₹{total})</button></div>"
                     return f"{confirm_text}<br>{btn_html}", state_data
 
-        # 2. Generative AI Logic
-        try:
-            if not self.model:
-                raise Exception("AI model not initialized")
-            
-            instructions = self._get_system_instructions(user_lang, user_script)
-            # Pass strict session context
-            prompt = f"SESSION_LANG: {user_lang}\nSESSION_SCRIPT: {user_script}\nINSTRUCTIONS:\n{instructions}\nUSER: {message}"
-            response = self.model.generate_content(prompt)
-            ai_text = self._enforce_script(response.text, user_script)
+        # 2. Generative AI Logic with 429 Resilience
+        if self.client and self.model_id:
+            for attempt in range(MAX_RETRIES + 1):
+                try:
+                    instructions = self._get_system_instructions(user_lang, user_script)
+                    # Pass strict context without full history to save tokens/cost
+                    prompt = f"SESSION_LANG: {user_lang}\nSESSION_SCRIPT: {user_script}\nINSTRUCTIONS: {instructions}\nUSER: {message}"
+                    
+                    response = self.client.models.generate_content(
+                        model=self.model_id,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            max_output_tokens=MAX_TOKENS,
+                            temperature=0.7
+                        )
+                    )
+                    
+                    ai_text = self._enforce_script(response.text, user_script)
+                    
+                    if self.booking_marker in ai_text:
+                        ai_text = ai_text.replace(self.booking_marker, "").strip()
+                        state_data['state'] = 'awaiting_exhibition_selection'
+                    
+                    if any(word in message.lower() for word in ['cancel', 'stop', 'restart']):
+                        state_data['state'] = 'idle'
 
-            if self.booking_marker in ai_text:
-                ai_text = ai_text.replace(self.booking_marker, "").strip()
-                state_data['state'] = 'awaiting_exhibition_selection'
-            
-            if any(word in message.lower() for word in ['cancel', 'stop', 'restart', 'shuru']):
-                state_data['state'] = 'idle'
+                    return ai_text, state_data
 
-            return ai_text, state_data
+                except Exception as e:
+                    error_msg = str(e)
+                    is_quota_error = any(code in error_msg for code in ["429", "ResourceExhausted", "Quota exceeded"])
+                    
+                    if is_quota_error:
+                        print(f"WARNING: Rate limit exceeded (429). Attempt {attempt+1}/{MAX_RETRIES+1}")
+                        if attempt < MAX_RETRIES:
+                            # Try to extract retry delay from exception if available
+                            wait_time = DEFAULT_RETRY_DELAY
+                            match = re.search(r'retry in (\d+\.?\d*)s', error_msg)
+                            if match:
+                                wait_time = float(match.group(1))
+                            
+                            time.sleep(wait_time)
+                            continue
+                    
+                    print(f"ERROR: AI Generation failure: {error_msg}")
+                    break # Exit loop and hit fallback brain
         
-        except Exception as e:
-            # --- BACKUP BRAIN (Enhanced Multilingual Fallback) ---
+        # --- BACKUP BRAIN (Enhanced Multilingual Fallback) ---
             
-            # Greetings
-            if re.search(r'\b(hi|hello|hey|namaste|greetings|pranam|aadab|shubh)\b', msg_lower):
-                return self._get_localized_response('greeting', user_lang, final_script_data), state_data
+        # Greetings
+        if re.search(r'\b(hi|hello|hey|namaste|greetings|pranam|aadab|shubh)\b', msg_lower):
+            return self._get_localized_response('greeting', user_lang, final_script_data), state_data
+        
+        # Booking
+        if re.search(r'\b(book|ticket|buy|reserve|yatra|ticketen)\b', msg_lower):
+            state_data['state'] = 'awaiting_exhibition_selection'
+            conn = get_db_connection()
+            exhibs = conn.execute('SELECT * FROM exhibitions').fetchall()
+            conn.close()
+            translated_resp = self._get_localized_response('booking_start', user_lang, final_script_data)
+            for e in exhibs: 
+                translated_resp += f"<b>{e['id']}. {e['title']}</b> - ₹{e['price']}<br>"
+            return translated_resp, state_data
             
-            # Booking
-            if re.search(r'\b(book|ticket|buy|reserve|yatra|ticketen)\b', msg_lower):
-                state_data['state'] = 'awaiting_exhibition_selection'
-                conn = get_db_connection()
-                exhibs = conn.execute('SELECT * FROM exhibitions').fetchall()
-                conn.close()
-                translated_resp = self._get_localized_response('booking_start', user_lang, final_script_data)
-                for e in exhibs: 
-                    translated_resp += f"<b>{e['id']}. {e['title']}</b> - ₹{e['price']}<br>"
-                return translated_resp, state_data
-                
-            # Quick Info
-            if 'hour' in msg_lower or 'time' in msg_lower or 'open' in msg_lower:
-                return self._get_localized_response('hours', user_lang, final_script_data), state_data
-            if 'park' in msg_lower or 'car' in msg_lower or 'vehic' in msg_lower:
-                return self._get_localized_response('parking', user_lang, final_script_data), state_data
-            if 'cafe' in msg_lower or 'food' in msg_lower or 'eat' in msg_lower or 'restaur' in msg_lower:
-                return self._get_localized_response('cafe', user_lang, final_script_data), state_data
-            if 'secur' in msg_lower or 'safe' in msg_lower:
-                return self._get_localized_response('security', user_lang, final_script_data), state_data
-            
-            return self._get_localized_response('unknown', user_lang, final_script_data), state_data
+        # Quick Info
+        if 'hour' in msg_lower or 'time' in msg_lower or 'open' in msg_lower:
+            return self._get_localized_response('hours', user_lang, final_script_data), state_data
+        if 'park' in msg_lower or 'car' in msg_lower or 'vehic' in msg_lower:
+            return self._get_localized_response('parking', user_lang, final_script_data), state_data
+        if 'cafe' in msg_lower or 'food' in msg_lower or 'eat' in msg_lower or 'restaur' in msg_lower:
+            return self._get_localized_response('cafe', user_lang, final_script_data), state_data
+        if 'secur' in msg_lower or 'safe' in msg_lower:
+            return self._get_localized_response('security', user_lang, final_script_data), state_data
+        
+        return self._get_localized_response('unknown', user_lang, final_script_data), state_data
 
     def process_payment_success(self, state_data, user_id):
         ticket_hash = str(uuid.uuid4())[:8].upper()
