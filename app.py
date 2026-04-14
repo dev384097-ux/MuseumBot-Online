@@ -11,7 +11,11 @@ from database import init_db, get_db_connection
 from authlib.integrations.flask_client import OAuth
 from flask_mail import Mail, Message
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
+# Enable ProxyFix to handle HTTPS redirects correctly behind Render's proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv('SECRET_KEY')
 if not app.secret_key:
     # Fallback only for development, otherwise will cause issues
