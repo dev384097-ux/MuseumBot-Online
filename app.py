@@ -25,6 +25,9 @@ IS_RENDER = 'RENDER' in os.environ
 if IS_RENDER:
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['PREFERRED_URL_SCHEME'] = 'https'
+else:
+    # Allow OAuth over HTTP for local development
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # OAuth Configuration
 oauth = OAuth(app)
@@ -132,10 +135,8 @@ def login_google():
         }
         return google_mock_callback(mock_user)
         
-    # Force HTTPS on Render to prevent "loading/hang" mismatch errors
-    scheme = 'https' if IS_RENDER else 'http'
-    redirect_uri = url_for('google_callback', _external=True, _scheme=scheme).strip()
-    return google.authorize_redirect(redirect_uri)
+    # Use the standard ProxyFix-aware url_for
+    return google.authorize_redirect(url_for('google_callback', _external=True))
 
 def google_mock_callback(user_info):
     email = user_info['email']
