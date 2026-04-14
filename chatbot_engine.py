@@ -172,13 +172,17 @@ class MuseumChatbot:
                     print(f"SUCCESS: Verified and selected AI Model: {model_name}")
                     return # Successfully found a model
                 except Exception as e:
-                    print(f"DEBUG: Model {model_name} failed smoke test: {str(e)}")
+                    print(f"DEBUG: Model {model_name} failed smoke test. Error: {str(e)}")
+                    if "401" in str(e) or "API_KEY_INVALID" in str(e):
+                        print("CRITICAL: Your GEMINI_API_KEY appears to be invalid!")
                     continue
             
             print("ERROR: All prioritized AI models failed verification. System using fallback mode.")
             self.client = None # Reset if no models worked
         except Exception as e:
-            print(f"CRITICAL: AI configuration failure: {e}")
+            print(f"CRITICAL: AI configuration failure during startup: {e}")
+            import traceback
+            traceback.print_exc()
             self.client = None
 
 
