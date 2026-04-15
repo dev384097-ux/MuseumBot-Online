@@ -1,110 +1,110 @@
-# Museum AI Chatbot (Heritage Guide)
+# 🏛️ Museum AI Chatbot (Heritage Guide)
 
-A production-grade, multilingual AI chatbot designed for Indian museums. It handles ticket bookings, provides museum information (hours, parking, cafe), and supports context-aware conversations in multiple Indian languages and scripts.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Flask](https://img.shields.io/badge/framework-flask-orange.svg)](https://flask.palletsprojects.com/)
+[![Gemini AI](https://img.shields.io/badge/AI-Google%20Gemini-green.svg)](https://aistudio.google.com/)
+[![Deployment-Ready](https://img.shields.io/badge/deploy-Docker%20%2F%20Render-blue.svg)](https://render.com/)
 
-## 🌟 Features
+A production-grade, multilingual AI chatbot designed for Indian museums. This Capstone project integrates cutting-edge Generative AI with a robust rule-based fallback system to handle ticket bookings, historical guidance, and museum logistics in multiple Indian languages and scripts.
 
-- **Multilingual Support**: Supports English and 9+ Indian languages (Hindi, Tamil, Punjabi, Bengali, Telugu, Kannada, Malayalam, Gujarati, Marathi).
-- **Dual Script Recognition**: Detects and responds in both Native scripts (e.g., नमस्ते) and Romanized/Latin scripts (e.g., Namaste).
-- **AI-Powered & Resilient**: Integrated with Google Gemini AI for natural conversations, with a robust rule-based fallback system for offline usage or quota limits.
-- **Secure Ticketing**: In-chat ticket booking workflow with SQLite backend and unique ticket ID generation.
-- **Authentication**: Secure login via Google OAuth or standard username/password with OTP verification.
-- **Deployment Ready**: Fully containerized with Docker, Nginx (Reverse Proxy), and Gunicorn.
+---
 
-## 📁 Project Structure
+## 🌟 Key Features
 
-| File / Directory | Description |
+### 🧠 Dual-Brain Architecture
+*   **Primary Brain**: Integrated with **Google Gemini 1.5 Flash/Pro** for natural, context-aware conversations.
+*   **Backup Brain**: A high-speed, rule-based engine that handles common queries (`hours`, `parking`, `tickets`) even if the AI API is offline or quota-limited.
+
+### 🌐 Polyglot & Script-Pure
+*   **10-Language Support**: English, Hindi, Tamil, Punjabi, Bengali, Telugu, Kannada, Malayalam, Gujarati, and Marathi.
+*   **Script Consistency**: Automatically detects and responds in both **Native script** (e.g., नमस्ते) and **Romanized/Latin script** (e.g., Namaste) based on user input.
+*   **Session-Locking**: Once a language is detected, the session locks to that language for consistent UI/UX.
+
+### 🎫 Interactive Ticketing Workflow
+*   **Linear Booking**: A state-driven conversation flow (`Choice` → `Quantity` → `Payment`).
+*   **Ledger Integration**: Generates unique booking hashes and integrates with a simulated secure payment gateway.
+*   **E-Ticket Generation**: Users can download a "Modern E-Ticket" directly after booking.
+
+### 🔒 Enterprise-Grade Security
+*   **Dual Auth**: Secure login via **Google OAuth 2.0** or traditional Email/Password.
+*   **OTP Verification**: Multi-factor authentication via Gmail/SendGrid with a **Fail-Safe Logging** system for production reliability.
+
+---
+
+## 📁 Project Architecture
+
+| File / Directory | Role |
 | :--- | :--- |
-| `app.py` | Main Flask application containing routes for Auth, API, and UI. |
-| `chatbot_engine.py` | Core logic for language detection, translation, and AI orchestration. |
-| `database.py` | SQLite database schema and connection management. |
-| `templates/` | HTML files (Chat interface, Login, Registration, OTP). |
-| `static/` | CSS and JS assets for the frontend. |
-| `data/museum.db` | SQLite database file (auto-generated). |
-| `Dockerfile` / `docker-compose.yml` | Containerization configurations. |
-| `nginx.conf` | Configuration for Nginx reverse proxy. |
-| `Jenkinsfile` | CI/CD pipeline definition. |
-| `test_*.py` | Comprehensive test suite for multilingual flows and engine logic. |
+| `app.py` | Main Flask entry point; handles Auth, API routes, and Session management. |
+| `chatbot_engine.py` | The "Core"; contains AI orchestration, language detection, and state logic. |
+| `database.py` | Schema definitions and SQLite connection pooling. |
+| `templates/` | Jinja2 templates for the chat interface, Login, Register, and OTP pages. |
+| `static/` | Premium CSS (Glassmorphism) and Vanilla JS (Chat UI logic). |
+| `Dockerfile` | Multi-stage build for production-ready containerization. |
+| `nginx.conf` | Reverse proxy configuration for SSL and security headers. |
+| `Jenkinsfile` | CI/CD pipeline for automated testing and deployment. |
 
-## 🛠️ Workflow
+---
 
-1.  **User Arrival**: User lands on the home page and is prompted to log in.
-2.  **Authentication**: User authenticates via Google or manual registration. If manual, an OTP is sent (or logged in console in dev mode).
-3.  **Chat Interaction**: 
-    - The `chatbot_engine` detects the user's language and script.
-    - AI (Gemini) generates a response based on strict system instructions.
-    - If AI fails/is unavailable, the "Backup Brain" (Rule-based) takes over.
-4.  **Booking Flow**:
-    - User asks for tickets.
-    - Bot presents exhibition options from the database.
-    - User selects an exhibition and quantity.
-    - Bot generates a "Proceed to Payment" button.
-    - On success, a booking record is created and a unique hash is displayed.
+## 🛠️ Deployment & Production Hardening
+
+The application is optimized for **Render.com** and high-availability environments:
+
+1.  **ProxyFix Middleware**: Correctly handles `X-Forwarded-Proto` for HTTPS redirects.
+2.  **SMTP Fail-Safe**: If an email provider fails, the OTP is automatically logged to the server console (`[FAIL-SAFE] OTP: 123456`) so developers can assist users in real-time.
+3.  **AI Smoke Tests**: On startup, the engine performs a "Smoke Test" to verify and select the best available model from a prioritized list (`Gemini 1.5 Flash`, `Gemini 1.5 Flash-8b`, etc.).
+4.  **429 Resilience**: Intelligent retry logic with exponential backoff for AI rate limits.
+
+---
 
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
-- Python 3.9+
-- Docker (optional)
+- Python 3.9 or higher
+- A Google AI Studio API Key ([Get it here](https://aistudio.google.com/))
+- Google Cloud OAuth Credentials (Optional but recommended)
 
-### 2. Setup
+### 2. Manual Installation
 ```bash
 # Clone the repository
 git clone <your-repo-url>
 cd CAPSTONE
 
+# Set up virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
-# Copy .env.example to .env and fill in the details
+# Configure Environment
 cp .env.example .env
+# Edit .env and add your GEMINI_API_KEY
 ```
 
-### 3. Running Locally
+### 3. Running with Docker
 ```bash
-python app.py
+docker-compose up --build
 ```
-The app will be available at `http://localhost:5000`.
-
-## 🔑 Recommended Free API Keys
-
-To get the most out of this chatbot, you'll need an AI API key. Here are the best **free** options:
-
-1.  **Google Gemini AI (Recommended)**
-    - **Model**: Gemini 1.5 Flash
-    - **How to Get**: Visit [Google AI Studio](https://aistudio.google.com/).
-    - **Pros**: Very generous free tier (15 RPM / 1M TPM for Flash). Already integrated into `chatbot_engine.py`.
-    
-2.  **Groq API**
-    - **Models**: Llama 3, Mixtral
-    - **How to Get**: Sign up at [Groq Console](https://console.groq.com/).
-    - **Pros**: Extremely fast inference speeds and a generous free beta tier.
-
-3.  **Hugging Face Inference API**
-    - **Models**: Thousands of open-source models.
-    - **How to Get**: Create an account at [Hugging Face](https://huggingface.co/settings/tokens).
-    - **Pros**: Completely free for hosted inference of many popular models.
-
-4.  **OpenRouter**
-    - **Models**: Access to dozens of providers.
-    - **How to Get**: Sign up at [OpenRouter.ai](https://openrouter.ai/).
-    - **Pros**: Some models are permanently free, and it provides a unified API.
-
-## 🛠️ Diagnostics & Maintenance
-
-If you run into issues on Render or Localhost, use these built-in tools:
-
-1.  **OAuth Debugger**: Visit `/debug-url` on your site to see the exact Redirect URI Google expects.
-2.  **AI Model Checker**: Run `python check_models.py` in your terminal to verify your Gemini API key and see which models are available.
-3.  **OTP Fail-Safe**: If the email service fails for any reason, the OTP code is automatically logged to the **Render Dashboard Logs** for manual retrieval.
-
-## 🚀 Production Configuration (Render)
-
-The app is optimized for Render with the following settings:
-- **Port 587 (TLS)**: Standard SMTP port for reliable email delivery.
-- **ProxyFix**: Middleware to handle HTTPS headers correctly behind Render's proxy.
-- **Quota Resilience**: Startup cooldowns and fallback models to ensure the chatbot stays online during API rate limits.
 
 ---
-*Created for the Museum AI Capstone Project.*
+
+## 🔑 Environment Variables
+
+| Variable | Description |
+| :--- | :--- |
+| `GEMINI_API_KEY` | Your Google AI Studio key (FREE). |
+| `GOOGLE_CLIENT_ID` | OAuth Client ID from Google Cloud Console. |
+| `GOOGLE_CLIENT_SECRET` | OAuth Client Secret. |
+| `MAIL_USERNAME` | SMTP Email (Gmail recommended). |
+| `MAIL_PASSWORD` | Gmail App Password (NOT your normal password). |
+| `SECRET_KEY` | A long random string for session encryption. |
+
+---
+
+## 🛠️ Diagnostic Tools
+*   **Model Checker**: Run `python check_models.py` to see which Gemini models are active on your key.
+*   **OAuth Debugger**: Visit `/debug-url` on your hosted app to verify Redirect URIs.
+
+---
+*Created as part of the Museum AI Capstone Project.*

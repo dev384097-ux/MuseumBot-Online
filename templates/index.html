@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <title>MuseumBot | AI-Driven Ticketing Platform</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Marcellus&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -15,7 +14,7 @@
         <ul class="nav-links">
             <li><a href="#features">Capabilities</a></li>
             <li><a href="#how">How it Works</a></li>
-            <li><a href="#outcomes">Outcomes</a></li>
+
             {% if logged_in %}
             <li class="nav-user-info">
                 <span class="user-name"><i class="fa-solid fa-circle-user"></i> {{ username }}</span>
@@ -25,7 +24,7 @@
             <li><a href="/login" class="nav-cta">Login / Register</a></li>
             {% endif %}
         </ul>
-    </nav>
+</nav>
 
     <!-- HERO SECTION -->
     <header class="hero-section">
@@ -34,17 +33,136 @@
                 <span class="badge-dot"></span>
                 SIH 1648 · NCSM · Ministry of Culture
             </div>
-            <h1 class="reveal">Reimagine the <em>Museum Visit</em></h1>
+            <h1 class="reveal">Experience <em>Ancient India</em></h1>
             <p class="reveal">An intelligent multilingual chatbot platform that handles ticket booking, show reservations, and visitor queries — eliminating queues across all NCSM museums.</p>
             <div class="hero-actions reveal">
                 <button class="cta-btn" onclick="openBooking()">🎫 Book Tickets Now</button>
             </div>
         </div>
     </header>
+    
+    <!-- EXPLORE HERITAGE SITES -->
+    <section id="explore">
+        <span class="section-tag reveal">Premier Destinations</span>
+        <h2 class="reveal">Explore <em>Heritage Sites</em></h2>
+        <div class="heritage-grid">
+            <div class="heritage-card reveal">
+                <div class="heritage-card-badge">New Delhi</div>
+                <img src="/static/images/national_museum_delhi.png" alt="National Museum" class="heritage-card-img">
+                <div class="heritage-card-content">
+                    <h3>National Museum</h3>
+                    <p>Home to over 200,000 works of art spanning 5,000 years of Indian cultural history.</p>
+                </div>
+            </div>
+            <div class="heritage-card reveal">
+                <div class="heritage-card-badge">Kolkata</div>
+                <img src="/static/images/indian_museum_kolkata.png" alt="Indian Museum" class="heritage-card-img">
+                <div class="heritage-card-content">
+                    <h3>Indian Museum</h3>
+                    <p>The largest and oldest multipurpose museum in the Asia-Pacific region, established in 1814.</p>
+                </div>
+            </div>
+            <div class="heritage-card reveal">
+                <div class="heritage-card-badge">Hyderabad</div>
+                <img src="/static/images/salar_jung_museum.png" alt="Salar Jung" class="heritage-card-img">
+                <div class="heritage-card-content">
+                    <h3>Salar Jung Museum</h3>
+                    <p>One of the largest individual collections in the world, featuring artifacts from across the globe.</p>
+                </div>
+            </div>
+            <div class="heritage-card reveal">
+                <div class="heritage-card-badge">Mumbai</div>
+                <img src="/static/images/csmvs_mumbai.png" alt="CSMVS" class="heritage-card-img">
+                <div class="heritage-card-content">
+                    <h3>CSMVS Mumbai</h3>
+                    <p>A premier heritage landmark known for its Indo-Saracenic architecture and world-class exhibitions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CINEMATIC SHOWCASE -->
+    <section class="showcase-section">
+        <span class="section-tag reveal">Cinematic Experience</span>
+        <h2 class="reveal">A Journey Through <em>History</em></h2>
+        <div class="video-frame reveal">
+            <div class="video-container">
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/WRRfvmBv9ec?autoplay=1&mute=1&loop=1&playlist=WRRfvmBv9ec&end=60" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            </div>
+        </div>
+    </section>
+
+    <!-- ARTIFACT GALLERY -->
+    <section class="artifact-section">
+        <span class="section-tag reveal">Visual Legacy</span>
+        <h2 class="reveal">Treasurers of India: <em>The Artifact Collection</em></h2>
+        <div class="artifact-grid">
+            <div class="artifact-card reveal">
+                <div class="artifact-img-box">
+                    <img src="/static/images/ashoka_pillar.png" alt="Ashoka Pillar">
+                </div>
+                <div class="artifact-info">
+                    <h3>The Lion Capital</h3>
+                    <p>The iconic Sarnath Pillar, a symbol of peace, justice, and the modern Indian state.</p>
+                </div>
+            </div>
+            <div class="artifact-card reveal">
+                <div class="artifact-img-box">
+                    <img src="/static/images/dancing_girl.png" alt="Dancing Girl">
+                </div>
+                <div class="artifact-info">
+                    <h3>Dancing Girl</h3>
+                    <p>A 4,500-year-old bronze masterpiece from the Harappan civilization, showcasing ancient metallurgical skill.</p>
+                </div>
+            </div>
+            <div class="artifact-card reveal">
+                <div class="artifact-img-box">
+                    <img src="/static/images/harappan_gallery.png" alt="Harappan Relics">
+                </div>
+                <div class="artifact-info">
+                    <h3>Civilization Relics</h3>
+                    <p>Intricate seals and jewelry that speak of the sophisticated urban life of the Indus Valley.</p>
+                </div>
+            </div>
+            <div class="artifact-card reveal">
+                <div class="artifact-img-box">
+                    <img src="/static/images/manuscript_gallery.png" alt="Ancient Manuscripts">
+                </div>
+                <div class="artifact-info">
+                    <h3>Ancient Manuscripts</h3>
+                    <p>Sacred texts preserved on palm leaves, carrying centuries of Vedic and scientific wisdom.</p>
+                </div>
+            </div>
+            <div class="artifact-card reveal">
+                <div class="artifact-img-box">
+                    <img src="/static/images/arms_gallery.png" alt="Imperial Arms">
+                </div>
+                <div class="artifact-info">
+                    <h3>Imperial Armoury</h3>
+                    <p>Ornate swords and shields belonging to the Great Dynasties, forged in the fires of history.</p>
+                </div>
+            </div>
+            <div class="artifact-card reveal">
+                <div class="artifact-img-box">
+                    <img src="/static/images/tanjore_painting.png" alt="Tanjore Art">
+                </div>
+                <div class="artifact-info">
+                    <h3>Tanjore Art</h3>
+                    <p>South Indian devotional paintings adorned with 22-carat gold leaf and precious stones.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+
 
     <!-- STATS -->
-    <div style="background: var(--bg-surface); padding: 50px 8%; border-top: 1px solid var(--border-gold); border-bottom: 1px solid var(--border-gold);">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; text-align: center;">
+    <div style="background: var(--bg-surface); padding: 80px 8%; border-top: 1px solid var(--border-gold); border-bottom: 1px solid var(--border-gold); text-align: left;">
+        <span class="section-tag reveal">Platform Impact</span>
+        <h2 class="reveal">Efficiency by the <em>Numbers</em></h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-top: 50px;">
             <div class="reveal">
                 <div style="font-family: 'Playfair Display'; font-size: 3rem; color: var(--primary-gold); margin-bottom: 10px;">0</div>
                 <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px;">Queue wait time</div>
@@ -120,37 +238,40 @@
         </div>
     </section>
 
-    <!-- OUTCOMES -->
-    <section id="outcomes">
-        <span class="section-tag reveal">Project Goals</span>
-        <h2 class="reveal">Three <em>core outcomes</em></h2>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
-            <div class="reveal" style="padding: 40px; border: 1px solid var(--border-gold); background: var(--bg-surface); border-radius: 10px;">
-                <div style="font-size: 2rem; margin-bottom: 20px;">✨</div>
-                <h3 style="color: var(--primary-gold); margin-bottom: 15px;">Enhanced Experience</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Quick, error-free booking eliminates queues and frustration.</p>
-            </div>
-            <div class="reveal" style="padding: 40px; border: 1px solid var(--border-gold); background: var(--bg-surface); border-radius: 10px;">
-                <div style="font-size: 2rem; margin-bottom: 20px;">⚙️</div>
-                <h3 style="color: var(--primary-gold); margin-bottom: 15px;">Operational Efficiency</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Automated handling reduces manual errors and staffing costs.</p>
-            </div>
-            <div class="reveal" style="padding: 40px; border: 1px solid var(--border-gold); background: var(--bg-surface); border-radius: 10px;">
-                <div style="font-size: 2rem; margin-bottom: 20px;">📊</div>
-                <h3 style="color: var(--primary-gold); margin-bottom: 15px;">Data Insights</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Real-time analytics support efficient decision-making.</p>
-            </div>
-        </div>
-    </section>
+
+
 
     <!-- CHAT WIDGET -->
     <div class="chat-widget" id="chatWidget" style="display: none;">
         <div class="chat-header">
             <div class="chat-title">
-                <i class="fa-solid fa-seedling"></i>
+                <div class="virtual-curator-avatar">
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#e2c28d;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#c5a059;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#8b6d31;stop-opacity:1" />
+                            </linearGradient>
+                            <filter id="goldGlow">
+                                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        <circle cx="20" cy="20" r="18" stroke="rgba(197, 160, 89, 0.4)" stroke-width="0.5" />
+                        <g fill="url(#goldGradient)" filter="url(#goldGlow)">
+                            <path d="M6 15 L20 4 L34 15 H6Z" />
+                            <rect x="9" y="17" width="2" height="14" rx="0.5" />
+                            <rect x="16" y="17" width="2" height="14" rx="0.5" />
+                            <rect x="22" y="17" width="2" height="14" rx="0.5" />
+                            <rect x="29" y="17" width="2" height="14" rx="0.5" />
+                            <rect x="6" y="31" width="28" height="3" rx="1" />
+                        </g>
+                    </svg>
+                </div>
                 <div>
                     <strong>Virtual Curator</strong>
-                    <div class="status">Online</div>
+                    <div class="status"><span class="status-dot"></span> Online</div>
                 </div>
             </div>
             <button class="close-chat" onclick="toggleChat()"><i class="fa-solid fa-xmark"></i></button>
@@ -363,9 +484,51 @@
     </div>
 
     <!-- TOGGLE BUTTON -->
-    <button class="chat-toggle-btn" id="chatToggleBtn" onclick="toggleChat()">
-        <i class="fa-solid fa-comment-dots"></i>
-    </button>
+    <div class="chat-toggle-container">
+        <div class="chat-hint">How may I help you?</div>
+        <button class="chat-toggle-btn" id="chatToggleBtn" onclick="toggleChat()">
+            <i class="fa-solid fa-landmark"></i>
+        </button>
+    </div>
+
+
+    <!-- ESSENTIAL VISITOR GUIDE -->
+    <section class="visitor-guide">
+        <span class="section-tag reveal">Essential Info</span>
+        <h2 class="reveal">Visitor <em>Guidelines &amp; Schedule</em></h2>
+        <div class="guide-grid">
+            <div class="guide-item reveal">
+                <i class="fa-solid fa-clock"></i>
+                <h3>Operational Hours</h3>
+                <ul>
+                    <li>Open Daily: 09:30 AM - 06:00 PM</li>
+                    <li>Ticket counter closes at 05:30 PM</li>
+                    <li>Planetarium Shows: Hourly from 11:00 AM</li>
+                    <li>Closed only on Holi & Diwali</li>
+                </ul>
+            </div>
+            <div class="guide-item reveal">
+                <i class="fa-solid fa-clipboard-list"></i>
+                <h3>Visitor Policy</h3>
+                <ul>
+                    <li>No food/beverages inside galleries</li>
+                    <li>Arrive 15 mins before scheduled shows</li>
+                    <li>Cloakroom available for large bags</li>
+                    <li>Supervised exploration for children</li>
+                </ul>
+            </div>
+            <div class="guide-item reveal">
+                <i class="fa-solid fa-school"></i>
+                <h3>Group Bookings</h3>
+                <ul>
+                    <li>Concessional rates for school groups</li>
+                    <li>Official institutional letter required</li>
+                    <li>Free entry for 1 escort per 10 students</li>
+                    <li>Book 48 hours in advance via Chatbot</li>
+                </ul>
+            </div>
+        </div>
+    </section>
 
     <!-- FOOTER -->
     <footer>
@@ -396,6 +559,7 @@
             <span>NCSM · Ministry of Culture · Govt. of India</span>
         </div>
     </footer>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="/static/main.js"></script>

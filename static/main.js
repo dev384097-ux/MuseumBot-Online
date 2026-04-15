@@ -66,8 +66,8 @@ function updateSummary() {
 
     if(sumMuseum) sumMuseum.textContent = museum.split(',')[0];
     if(sumDate) sumDate.textContent = date;
-    if(sumQty) sumQty.textContent = `${qty} × ${selectedTier}`;
-    if(sumTotal) sumTotal.textContent = `₹${total}`;
+    if(sumQty) sumQty.textContent = `${qty} Ã— ${selectedTier}`;
+    if(sumTotal) sumTotal.textContent = `â‚¹${total}`;
 
     // Update QR scan amount if visible
     const scanAmt = document.getElementById('scanAmount');
@@ -186,10 +186,14 @@ async function downloadTicket() {
 // --- AI CHATBOT POLYGLOT LOGIC ---
 function toggleChat() {
     const chatWidget = document.getElementById('chatWidget');
+    const chatHint = document.querySelector('.chat-hint');
+    
     if (chatWidget.style.display === 'none') {
         chatWidget.style.display = 'flex';
+        if (chatHint) chatHint.style.display = 'none';
     } else {
         chatWidget.style.display = 'none';
+        if (chatHint) chatHint.style.display = 'block';
     }
 }
 
@@ -244,10 +248,36 @@ function quickAction(text) {
 
 function appendBotMessage(html) {
     const chatBody = document.getElementById('chatBody');
+    const botMsgContainer = document.createElement('div');
+    botMsgContainer.style.display = 'flex';
+    botMsgContainer.style.gap = '10px';
+    botMsgContainer.style.marginBottom = '15px';
+    botMsgContainer.style.alignItems = 'flex-start';
+
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'virtual-curator-avatar';
+    avatarDiv.innerHTML = `
+        <svg width="35" height="35" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="18" stroke="rgba(197, 160, 89, 0.3)" stroke-width="0.5" />
+            <g fill="#c5a059">
+                <path d="M6 15 L20 4 L34 15 H6Z" />
+                <rect x="9" y="17" width="2" height="14" rx="0.5" />
+                <rect x="16" y="17" width="2" height="14" rx="0.5" />
+                <rect x="22" y="17" width="2" height="14" rx="0.5" />
+                <rect x="29" y="17" width="2" height="14" rx="0.5" />
+                <rect x="6" y="31" width="28" height="3" rx="1" />
+            </g>
+        </svg>
+    `;
+
     const botDiv = document.createElement('div');
     botDiv.className = 'message bot-message';
+    botDiv.style.margin = '0';
     botDiv.innerHTML = html;
-    chatBody.appendChild(botDiv);
+
+    botMsgContainer.appendChild(avatarDiv);
+    botMsgContainer.appendChild(botDiv);
+    chatBody.appendChild(botMsgContainer);
     chatBody.scrollTop = chatBody.scrollHeight;
 }
 
@@ -272,15 +302,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
 });
 
+let lastScrollTop = 0;
 window.addEventListener('scroll', () => {
     const nav = document.getElementById('navbar');
-    if (window.scrollY > 50) {
+    let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+    // Smart Sticky Header: Hide on scroll down, show on scroll up
+    if (scrollTop > lastScrollTop && scrollTop > 150) {
+        nav.classList.add('nav-hidden');
+    } else {
+        nav.classList.remove('nav-hidden');
+    }
+    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+
+    // Visual State: Transparent at top, solid while scrolling
+    if (scrollTop > 50) {
         nav.style.padding = '12px 8%';
-        nav.style.background = 'rgba(5, 5, 10, 0.98)';
+        nav.style.background = 'rgba(10, 10, 9, 0.85)';
         nav.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
     } else {
-        nav.style.padding = '24px 8%';
+        nav.style.padding = '20px 8%';
         nav.style.background = 'transparent';
         nav.style.boxShadow = 'none';
     }
 });
+
