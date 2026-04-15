@@ -463,24 +463,17 @@ def generate_upi_qr():
         # We set expire_by to 15 mins from now
         expire_time = int(time.time() + 900) 
         
-        payment_link_id = None
+        # Create a simplified Razorpay Payment Link (Amount + Currency + Description)
+        # We strip optional fields like 'customer' to ensure 100% success in Test Mode
+        pl_data = {
+            "amount": paise_amount,
+            "currency": "INR",
+            "description": f"Ticket for {museum_title}"
+        }
         
-        # Only try Razorpay Link if keys are not placeholders
-        key_id = os.getenv('RAZORPAY_KEY_ID', '')
-        if 'test_Sdudj7bf' in key_id or not key_id:
-            # Fallback to Manual UPI for security/simplicity if no real keys
-            upi_id = os.getenv('BUSINESS_UPI_ID', 'guptadev853@okaxis')
-            amount_val = "{:.2f}".format(float(amount))
-            upi_url = f"upi://pay?pa={upi_id}&pn=MuseumBot&am={amount_val}&cu=INR"
-        else:
-            pl_data = {
-                "amount": paise_amount,
-                "currency": "INR",
-                "description": f"Ticket for {museum_title}"
-            }
-            payment_link = rzp_client.payment_link.create(data=pl_data)
-            upi_url = payment_link['short_url']
-            payment_link_id = payment_link['id']
+        payment_link = rzp_client.payment_link.create(data=pl_data)
+        upi_url = payment_link['short_url']
+        payment_link_id = payment_link['id']
         
         # Now generate a QR code for the URL (Verified Link or Manual UPI)
         qr = qrcode.QRCode(version=1, box_size=10, border=4)
