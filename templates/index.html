@@ -277,9 +277,7 @@
             <button class="close-chat" onclick="toggleChat()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="chat-body" id="chatBody">
-            <div class="message bot-message">
-                Greetings, <b>{{ username if logged_in else 'Guest' }}</b>. I am here to answer your queries and assist with "tickets". How may I help you?
-            </div>
+            <div class="message bot-message">Greetings, <b>{{ username if logged_in else 'Guest' }}</b>. I am here to answer your queries and assist with "tickets". How may I help you?</div>
         </div>
         <div class="chat-typing" id="chatTyping" style="display: none; padding: 0 20px;">
             <div class="typing-indicator">

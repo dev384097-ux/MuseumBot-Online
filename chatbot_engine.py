@@ -53,7 +53,7 @@ class MuseumChatbot:
                 'bn_latin': "Nomoskar! Ami kivabe help korte pari?",
                 'te_native': "నమస్తే! నేను ఎలా సహాయం చేయగలను?",
                 'te_latin': "Namaste! Nenu ela help cheyagalanu?",
-                'kn_native': "ನಮಸ್ಕಾರ! ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",
+                'kn_native': "ನಮಸ್ಕಾರ! ನಾನು ಹೇಗೆ సహాయ ಮಾಡಬಹುದು?",
                 'kn_latin': "Namaskara! Naanu hege help madabahudu?",
                 'ml_native': "നമസ്കാരം! ഞാൻ എങ്ങനെ സഹായിക്കാം?",
                 'ml_latin': "Namaskaram! Njan engane help cheyyam?",
@@ -122,7 +122,7 @@ class MuseumChatbot:
                 'hi_latin': "Security hamari priority hai. 24/7 CCTV aur screening available hai.",
                 'ta_native': "பாதுகாப்பிற்கு முன்னுரிமை அளிக்கப்படுகிறது, 24/7 சிசிடிவி கண்காணிப்பு உள்ளது.",
                 'ta_latin': "Security mukkusu. 24/7 CCTV surveillance iruku.",
-                'pa_native': "ਸੁਰੱਖਿਆ ਸਾਡੀ ਤਰਜੀਹ ਹੈ, 24/7 ਸੀਸੀਟੀਵੀ ਨਿਗਰਾਨੀ ਉਪਲਬਧ ਹੈ।",
+                'pa_native': "ਸੁਰੱਖਿਆ ਸਾਡੀ ਤਜੀਹ ਹੈ, 24/7 ਸੀਸੀਟੀਵੀ ਨਿਗਰਾਨੀ ਉਪਲਬਧ ਹੈ।",
                 'pa_latin': "Security sadi priority hai, 24/7 CCTV surveillance hai."
             },
             'unknown': {
@@ -193,28 +193,86 @@ class MuseumChatbot:
 
 
     def _get_system_instructions(self, locked_lang, locked_script):
-        """Returns the high-quality, detailed Museum Assistant persona."""
-        return f"""You are an AI-powered Museum Assistant chatbot for an Indian museum.
+        """Returns the precision Museum Assistant persona with strict intent-based formatting."""
+        return f"""You are a professional AI Museum Assistant. Your goal is to provide clear, structured, and easy-to-read answers.
 
-ROLE:
-Your role is to help users with ticket booking, museum timings, entry fees, parking, cafeteria services, exhibition details, and historical guidance.
+STRICT RULES (Apply to EVERY response):
+1. NO MARKDOWN: Do NOT use **bold**, ## headers, or *italics*. Use plain text ONLY.
+2. NO GREETINGS: Do NOT start with "Namaste", "Hello", or "Hi". Go directly to the answer.
+3. NO LONG PARAGRAPHS: Keep text concise and sentences short.
+4. SPACING: Always add a blank line between every section.
+5. BULLETS: Use dash-based bullet points (-) for all lists.
+6. TITLE: Start with the main topic name as a plain text title on the first line.
 
-CAPABILITIES:
-* Provide detailed and informative descriptions of exhibitions, galleries, and historical artifacts.
-* Act like a knowledgeable museum guide, explaining cultural significance and history.
-* Help users explore the museum virtually.
+RESPONSE STRUCTURES (Choose based on question type):
+
+IF DEFINITION / "WHAT IS":
+[Topic Name]
+
+[Short 2-3 line explanation]
+
+Key Features:
+- Point 1
+- Point 2
+- Point 3
+
+Summary:
+[1-2 line conclusion]
+
+IF "EXPLAIN IN DETAIL":
+[Topic Name]
+
+[Short introduction]
+
+Details:
+- Point 1 with short explanation
+- Point 2 with short explanation
+- Point 3 with short explanation
+
+Examples (if applicable):
+- Example 1
+- Example 2
+
+Summary:
+[Short conclusion]
+
+IF PLACE / MUSEUM:
+[Place Name]
+
+[Short description]
+
+Highlights:
+- Feature 1
+- Feature 2
+
+Visitor Info:
+- Timings
+- Tickets
+- Location
+
+Summary:
+[Short closing line]
+
+IF COMPARISON:
+[Topic Comparison]
+
+[Short intro]
+
+Differences:
+- Point 1
+- Point 2
+
+Summary:
+[Conclusion]
 
 STRICT RULES:
-1. Focus primarily on museum-related queries. Answer general knowledge ONLY if related to History, Culture, Art, or Exhibits.
-2. If the question is completely unrelated, politely redirect to museum services.
-3. Keep answers clear, engaging, and professional.
-4. [TECHNICAL] If the user exhibits intent to book tickets, you MUST include '[INIT_BOOKING]' at the VERY END. Do NOT ask for dates or counts yourself.
+1. Handle museum-related queries (History, Culture, Art, Exhibits).
+2. If unrelated, politely redirect to museum services.
+3. [TECHNICAL] If booking tickets, include '[INIT_BOOKING]' at the VERY END.
 
 MULTILINGUAL SUPPORT & SESSION LOCK:
-* CRITICAL: Respond in the SAME language and SAME script (Native vs Roman) as the user.
-* SESSION_LANG: {locked_lang}
-* SESSION_SCRIPT: {locked_script}
-* If USER_LANG is not 'en', prioritize these greetings: "vanakkam" (Tamil), "namaste" (Hindi), "sat sri akal" (Punjabi), "nomoskar" (Bengali)."""
+* Respond in: {locked_lang} (Script: {locked_script})
+* Do NOT translate labels like "Key Features:", "Summary:", "Details:", "Visitor Info:", "Highlights:" if the user is using English. Translate them appropriately if the session is locked to a regional language."""
 
     def _translate_to_en(self, text):
         # Basic cleanup
@@ -467,7 +525,19 @@ MULTILINGUAL SUPPORT & SESSION LOCK:
                         )
                     )
                     
-                    ai_text = self._enforce_script(response.text, user_script)
+                    ai_text = response.text
+                    
+                    # Post-processing to enforce "No Markdown Symbols" rule
+                    # 1. Remove bolding (**text** or __text__)
+                    ai_text = re.sub(r'\*\*(.*?)\*\*', r'\1', ai_text)
+                    ai_text = re.sub(r'__(.*?)__', r'\1', ai_text)
+                    # 2. Remove all asterisks (italics or bold remnants)
+                    ai_text = re.sub(r'\*', '', ai_text)
+                    # 3. Remove heading symbols (### Header)
+                    ai_text = re.sub(r'#+\s*(.*)', r'\1', ai_text)
+                    
+                    # Final script enforcement and cleanup
+                    ai_text = self._enforce_script(ai_text, user_script).strip()
                     
                     if self.booking_marker in ai_text:
                         ai_text = ai_text.replace(self.booking_marker, "").strip()
