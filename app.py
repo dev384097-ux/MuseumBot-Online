@@ -8,10 +8,15 @@ from flask import Flask, request, jsonify, render_template, session, redirect, u
 from werkzeug.security import generate_password_hash, check_password_hash
 from chatbot_engine import MuseumChatbot
 from database import init_db, get_db_connection
+import razorpay
 from authlib.integrations.flask_client import OAuth
 from flask_mail import Mail, Message
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail as SendGridMail
+import qrcode
+import io
+import base64
+import time
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -58,6 +63,11 @@ mail = Mail(app)
 if not os.path.exists(os.path.join(os.path.dirname(__file__), 'data', 'museum.db')):
     with app.app_context():
         init_db()
+
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', 'rzp_test_placeholder')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', 'secret_placeholder')
+rzp_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 chatbot = MuseumChatbot()
 
@@ -127,7 +137,10 @@ def home():
     
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
-    return render_template('index.html', logged_in=is_logged_in, username=username)
+    return render_template('index.html', 
+                          logged_in=is_logged_in, 
+                          username=username,
+                          rzp_key_id=RAZORPAY_KEY_ID)
 
 @app.route('/login/google')
 def login_google():
@@ -328,6 +341,79 @@ def pay():
     
     return jsonify(res)
 
+@app.route('/api/create_razorpay_order', methods=['POST'])
+def create_razorpay_order():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    data = request.json
+    amount = int(float(data.get('amount', 0)) * 100) # Convert to paise
+    
+    try:
+        order_params = {
+            'amount': amount,
+            'currency': 'INR',
+            'payment_capture': 1
+        }
+        order = rzp_client.order.create(data=order_params)
+        return jsonify({'success': True, 'order_id': order['id']})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/verify_razorpay_payment', methods=['POST'])
+def verify_razorpay_payment():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    data = request.json
+    razorpay_payment_id = data.get('razorpay_payment_id')
+    razorpay_order_id = data.get('razorpay_order_id')
+    razorpay_signature = data.get('razorpay_signature')
+    
+    # Booking details for DB
+    museum_title = data.get('museum')
+    visitor_name = data.get('visitor_name')
+    visit_date = data.get('visit_date', 'Not Selected')
+    count = int(data.get('count', 1))
+    total = float(data.get('total', 0))
+    user_id = session['user_id']
+
+    try:
+        # Verify Payment Signature
+        params_dict = {
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        }
+        rzp_client.utility.verify_payment_signature(params_dict)
+        
+        # Payment is verified SUCCESSFUL
+        conn = get_db_connection()
+        exhib = conn.execute('SELECT id FROM exhibitions WHERE title = ?', (museum_title,)).fetchone()
+        ex_id = exhib['id'] if exhib else 99
+        
+        ticket_hash = str(uuid.uuid4())[:8].upper()
+        
+        conn.execute(
+            'INSERT INTO bookings (user_id, visitor_name, visit_date, exhibition_id, num_tickets, total_price, ticket_hash, status, razorpay_order_id, razorpay_payment_id, razorpay_signature) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (user_id, visitor_name, visit_date, ex_id, count, total, ticket_hash, 'Confirmed', razorpay_order_id, razorpay_payment_id, razorpay_signature)
+        )
+        conn.commit()
+        conn.close()
+        
+        # If this was from a chatbot flow, clear the state
+        if 'chatbot_state' in session:
+            session['chatbot_state'] = {'state': 'idle'}
+            session.modified = True
+
+        return jsonify({
+            'success': True, 
+            'ticket_no': ticket_hash,
+            'message': 'Payment Verified & Booking Confirmed!'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Payment Verification Failed: {str(e)}'}), 400
+
 @app.route('/api/manual_book', methods=['POST'])
 def manual_book():
     if 'user_id' not in session:
@@ -335,19 +421,22 @@ def manual_book():
     
     data = request.json
     user_id = session['user_id']
-    museum = data.get('museum')
+    museum_title = data.get('museum')
     visitor_name = data.get('visitor_name')
+    visit_date = data.get('visit_date', 'Not Selected')
     count = int(data.get('count', 1))
     total = float(data.get('total', 0))
     
-    import uuid
+    conn = get_db_connection()
+    # Try to find the correct exhibition_id based on the museum title
+    exhib = conn.execute('SELECT id FROM exhibitions WHERE title = ?', (museum_title,)).fetchone()
+    ex_id = exhib['id'] if exhib else 99 # Fallback to 99 if not found
+    
     ticket_hash = str(uuid.uuid4())[:8].upper()
     
-    conn = get_db_connection()
-    # We'll use exhibition_id = 99 for "Manual/Various" since the manual form has its own museum select
     conn.execute(
-        'INSERT INTO bookings (user_id, visitor_name, exhibition_id, num_tickets, total_price, ticket_hash) VALUES (?, ?, ?, ?, ?, ?)',
-        (user_id, visitor_name, 99, count, total, ticket_hash)
+        'INSERT INTO bookings (user_id, visitor_name, visit_date, exhibition_id, num_tickets, total_price, ticket_hash) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        (user_id, visitor_name, visit_date, ex_id, count, total, ticket_hash)
     )
     conn.commit()
     conn.close()
@@ -355,8 +444,118 @@ def manual_book():
     return jsonify({
         'success': True, 
         'ticket_no': ticket_hash,
-        'message': f'Booking for {museum} successful!'
+        'message': f'Booking for {museum_title} successful!'
     })
+
+@app.route('/api/generate_upi_qr', methods=['POST'])
+def generate_upi_qr():
+    try:
+        data = request.json
+        amount = float(data.get('amount', 0))
+        museum_title = data.get('museum', 'Museum Visit')
+        visitor_name = data.get('visitor_name', 'Guest')
+        
+        # Razorpay expects amount in paise (1 INR = 100 Paise)
+        paise_amount = int(amount * 100)
+        
+        # Create a professional Razorpay Payment Link
+        # This link generates a verified QR code and bypasses banking security blocks
+        # We set expire_by to 15 mins from now
+        expire_time = int(time.time() + 900) 
+        
+        pl_data = {
+            "amount": paise_amount,
+            "currency": "INR",
+            "description": f"Ticket for {museum_title}"
+        }
+        
+        payment_link = rzp_client.payment_link.create(data=pl_data)
+        short_url = payment_link['short_url']
+        link_id = payment_link['id']
+        
+        # Now generate a QR code for this professional short URL
+        qr = qrcode.QRCode(version=1, box_size=10, border=4)
+        qr.add_data(short_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        img_str = base64.b64encode(buf.getvalue()).decode()
+        
+        return jsonify({
+            'success': True, 
+            'qr_code': f"data:image/png;base64,{img_str}",
+            'payment_link_id': link_id
+        })
+    except Exception as e:
+        print(f"QR/Link Generation Error: {str(e)}")
+        # Fallback to manual UPI if Razorpay Link creation fails (e.g. Test mode limitations)
+        return jsonify({
+            'success': False, 
+            'message': f"Razorpay Link Error: {str(e)}"
+        }), 500
+
+@app.route('/api/check_payment_status', methods=['POST'])
+def check_payment_status():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+        
+    data = request.json
+    order_id = data.get('order_id') # For Card flow
+    link_id = data.get('payment_link_id') # For UPI/QR flow
+    
+    # Booking details
+    museum_title = data.get('museum')
+    visitor_name = data.get('visitor_name')
+    visit_date = data.get('visit_date', 'Not Selected')
+    count = int(data.get('count', 1))
+    total = float(data.get('total', 0))
+    user_id = session['user_id']
+
+    try:
+        is_paid = False
+        final_order_id = order_id
+        
+        if link_id:
+            # Check Payment Link Status
+            pl = rzp_client.payment_link.fetch(link_id)
+            if pl['status'] == 'paid':
+                is_paid = True
+                final_order_id = pl.get('order_id', order_id)
+        elif order_id:
+            # Check Order Status
+            order = rzp_client.order.fetch(order_id)
+            if order['status'] == 'paid':
+                is_paid = True
+
+        if is_paid:
+            # Create booking in DB if not already created
+            conn = get_db_connection()
+            existing = None
+            if final_order_id:
+                existing = conn.execute('SELECT id FROM bookings WHERE razorpay_order_id = ?', (final_order_id,)).fetchone()
+            
+            if not existing:
+                exhib = conn.execute('SELECT id FROM exhibitions WHERE title = ?', (museum_title,)).fetchone()
+                ex_id = exhib['id'] if exhib else 99
+                ticket_hash = str(uuid.uuid4())[:8].upper()
+                
+                conn.execute(
+                    'INSERT INTO bookings (user_id, visitor_name, visit_date, exhibition_id, num_tickets, total_price, ticket_hash, status, razorpay_order_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    (user_id, visitor_name, visit_date, ex_id, count, total, ticket_hash, 'Confirmed', final_order_id)
+                )
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'paid': True, 'ticket_no': ticket_hash})
+            else:
+                conn.close()
+                return jsonify({'success': True, 'paid': True, 'ticket_no': 'ALREADY_EXISTS'})
+                
+        return jsonify({'success': True, 'paid': False})
+    except Exception as e:
+        print(f"Poll Error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

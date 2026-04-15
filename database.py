@@ -42,11 +42,15 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             visitor_name TEXT,
+            visit_date TEXT,
             exhibition_id INTEGER,
             num_tickets INTEGER,
             total_price REAL,
             ticket_hash TEXT,
-            status TEXT DEFAULT 'Confirmed',
+            status TEXT DEFAULT 'Pending Payment',
+            razorpay_order_id TEXT,
+            razorpay_payment_id TEXT,
+            razorpay_signature TEXT,
             FOREIGN KEY(user_id) REFERENCES users(id),
             FOREIGN KEY(exhibition_id) REFERENCES exhibitions(id)
         )
@@ -56,9 +60,10 @@ def init_db():
     c.execute('SELECT COUNT(*) FROM exhibitions')
     if c.fetchone()[0] == 0:
         exhibitions = [
-            ("Ancient Artifacts", "Explore the wonders of ancient civilizations.", 150.0),
-            ("Modern Science Gallery", "Interactive science exhibits and experiments.", 200.0),
-            ("Space Exploration", "Discover the universe, planetarium show included.", 300.0)
+            ("National Science Centre, New Delhi", "Premier science museum in the capital with interactive galleries.", 100.0),
+            ("Nehru Science Centre, Mumbai", "India's largest interactive science center located in Worli.", 100.0),
+            ("BITM Kolkata", "The first science museum in India, focusing on industrial and technological heritage.", 100.0),
+            ("Science City, Ahmedabad", "A large-scale science center featuring an IMAX theater and pavilion.", 100.0)
         ]
         c.executemany('INSERT INTO exhibitions (title, description, price) VALUES (?, ?, ?)', exhibitions)
     

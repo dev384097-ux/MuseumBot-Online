@@ -4,6 +4,7 @@ let selectedPrice = 100;
 let selectedTier = "Adult";
 let qty = 2;
 let selectedPaymentMethod = 'upi';
+let payPollInterval = null;
 
 function openBooking() {
     document.getElementById('bookingModal').style.display = 'flex';
@@ -66,12 +67,12 @@ function updateSummary() {
 
     if(sumMuseum) sumMuseum.textContent = museum.split(',')[0];
     if(sumDate) sumDate.textContent = date;
-    if(sumQty) sumQty.textContent = `${qty} Ã— ${selectedTier}`;
-    if(sumTotal) sumTotal.textContent = `â‚¹${total}`;
+    if(sumQty) sumQty.textContent = `${qty} × ${selectedTier}`;
+    if(sumTotal) sumTotal.textContent = `₹${total}`;
 
     // Update QR scan amount if visible
-    const scanAmt = document.getElementById('scanAmount');
-    if (scanAmt) scanAmt.textContent = total;
+    const scanAmt = document.getElementById('qrAmount');
+    if (scanAmt) scanAmt.textContent = total.toFixed(2);
 }
 
 function selectPayment(method, el) {
@@ -83,10 +84,46 @@ function selectPayment(method, el) {
     if(method === 'upi') {
         document.getElementById('payUPI').style.display = 'block';
         document.getElementById('payCard').style.display = 'none';
+        // Auto-initialize QR display if not yet shown
+        document.getElementById('qrAmount').textContent = (selectedPrice * qty).toFixed(2);
     } else if(method === 'card') {
         document.getElementById('payUPI').style.display = 'none';
         document.getElementById('payCard').style.display = 'block';
     }
+}
+
+function openPaymentModal(total, museumTitle, count, visitDate, visitorName) {
+    // 1. Open Modal
+    document.getElementById('bookingModal').style.display = 'flex';
+    
+    // 2. Pre-fill data
+    const museumSelect = document.getElementById('museumSelect');
+    // Try to find matching option by text
+    for (let i = 0; i < museumSelect.options.length; i++) {
+        if (museumSelect.options[i].text.toLowerCase().includes(museumTitle.toLowerCase())) {
+            museumSelect.selectedIndex = i;
+            break;
+        }
+    }
+    
+    if(visitorName) document.getElementById('visitorName').value = visitorName;
+    if(visitDate) document.getElementById('visitDate').value = visitDate;
+    
+    qty = count;
+    document.getElementById('qtyVal').textContent = qty.toString().padStart(2, '0');
+    
+    // 3. Set Price/Tier logic (Student = ₹1, else Adult/Standard)
+    if (total / count === 1) {
+        selectedPrice = 1;
+        selectedTier = "Student";
+    } else {
+        selectedPrice = total / count;
+        selectedTier = "Adult";
+    }
+    
+    // 4. Update UI and jump to Payment
+    updateSummary();
+    goStep(3);
 }
 
 async function processManualPayment() {
@@ -99,66 +136,201 @@ async function processManualPayment() {
         goStep(1);
         return;
     }
-    
-    // STRICT PAYMENT VALIDATION
-    if (selectedPaymentMethod === 'upi') {
-        const utr = document.getElementById('utrInput').value.trim();
-        if (utr.length < 12) {
-            alert("Payment Verification Failed: Please complete the UPI payment using the QR code and enter the valid 12-digit UTR/Reference number.");
-            return;
-        }
-    } else if (selectedPaymentMethod === 'card') {
-        const cardNo = document.getElementById('cardNumberInput').value.trim();
-        const cvv = document.getElementById('cardCvvInput').value.trim();
-        if (cardNo.length < 16 || cvv.length < 3) {
-            alert("Payment Failed: Please enter valid 16-digit credit/debit card details.");
-            return;
-        }
-    }
 
     const btn = document.getElementById('payBtn');
     const originalContent = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
-    btn.disabled = true;
-
-    // Simulate Payment Gateway Network Delay
-    await new Promise(r => setTimeout(r, 1800));
-
-    // For Demo: Randomly simulate a payment failure (10% chance)
-    if (Math.random() < 0.10) {
-        alert("Payment Gateway Error: Bank server did not respond. Your account has not been charged.");
-        btn.innerHTML = originalContent;
-        btn.disabled = false;
-        return;
-    }
-
+    
     try {
-        const response = await fetch('/api/manual_book', {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Initializing...';
+        btn.disabled = true;
+
+        // 1. Create Order on Backend
+        const orderResp = await fetch('/api/create_razorpay_order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                museum: museum,
-                visitor_name: visitor,
-                count: qty,
-                total: total
-            })
+            body: JSON.stringify({ amount: total })
         });
-        const data = await response.json();
+        const orderData = await orderResp.json();
 
-        if (data.success) {
-            document.getElementById('ticketNum').textContent = data.ticket_no;
-            document.getElementById('ticketMuseumText').textContent = museum;
-            document.getElementById('ticketVisitorText').textContent = visitor;
-            goStep(4);
-        } else {
-            alert(data.message || "Booking encountered a problem.");
+        if (!orderData.success) {
+            if (orderData.message.includes('placeholder') || orderData.message.includes('Authentication failed')) {
+                console.log("Using Mock Verification (Razorpay Credentials Missing/Invalid)");
+                return demoPaymentFlow(museum, visitor, total, btn, originalContent);
+            }
+            throw new Error(orderData.message);
         }
+
+        const orderId = orderData.order_id;
+        console.log("Order Created:", orderId);
+
+        if (selectedPaymentMethod === 'upi') {
+            console.log("UPI Payment Selected, Generating QR...");
+            // --- NEW DYNAMIC SCANNER FLOW ---
+            document.getElementById('qrPlaceholder').style.display = 'flex';
+            document.getElementById('dynamicQR').style.display = 'none';
+            document.getElementById('payStatusLabel').textContent = "Generating Scanner...";
+            document.getElementById('qrAmount').textContent = total.toFixed(2);
+
+            const qrResp = await fetch('/api/generate_upi_qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_id: orderId, amount: total })
+            });
+
+            console.log("QR Response Received Status:", qrResp.status);
+            if (!qrResp.ok) throw new Error(`Server returned ${qrResp.status}`);
+            
+            const qrData = await qrResp.json();
+            console.log("QR Data:", qrData);
+
+            if (qrData.success) {
+                document.getElementById('qrPlaceholder').style.display = 'none';
+                document.getElementById('dynamicQR').src = qrData.qr_code;
+                document.getElementById('dynamicQR').style.display = 'block';
+                document.getElementById('payStatusLabel').textContent = "Scan & Pay Now";
+                document.getElementById('payStatusSub').style.display = 'block';
+                
+                // Start Polling
+                startPaymentPolling(orderId, museum, visitor, total, qrData.payment_link_id);
+            } else {
+                throw new Error("Failed to generate QR");
+            }
+        } else {
+            // --- STANDARD RAZORPAY MODAL FOR CARD ---
+            const options = {
+                "key": window.RZP_KEY_ID || "rzp_test_placeholder", 
+                "amount": total * 100,
+                "currency": "INR",
+                "name": "MuseumBot Ticketing",
+                "description": `Booking for ${museum}`,
+                "order_id": orderId,
+                "handler": async function (response) {
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
+                    const verifyResp = await fetch('/api/verify_razorpay_payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature,
+                            museum: museum,
+                            visitor_name: visitor,
+                            visit_date: document.getElementById('visitDate').value || "Not Selected",
+                            count: qty,
+                            total: total
+                        })
+                    });
+                    const verifyData = await verifyResp.json();
+                    if (verifyData.success) {
+                        document.getElementById('ticketNum').textContent = verifyData.ticket_no;
+                        document.getElementById('ticketVisitorText').textContent = visitor || "Valued Guest";
+                        document.getElementById('ticketMuseumText').textContent = museum;
+                        goStep(4);
+                    } else {
+                        alert("Payment Verification Failed: " + verifyData.message);
+                    }
+                },
+                "prefill": { "name": visitor, "email": "visitor@example.com" },
+                "theme": { "color": "#c5a059" }
+            };
+            const rzp1 = new Razorpay(options);
+            rzp1.open();
+        }
+
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+
     } catch (err) {
-        alert("Connectivity issue. Please try again.");
-    } finally {
+        console.error(err);
+        // Hide loading states on error
+        const qrPl = document.getElementById('qrPlaceholder');
+        if (qrPl) qrPl.style.display = 'none';
+        const stLbl = document.getElementById('payStatusLabel');
+        if (stLbl) stLbl.textContent = "Error Generating QR";
+        
+        alert("Payment Error: " + err.message);
         btn.innerHTML = originalContent;
         btn.disabled = false;
     }
+}
+
+function startPaymentPolling(orderId, museum, visitor, total, linkId = null) {
+    if (payPollInterval) clearInterval(payPollInterval);
+    
+    payPollInterval = setInterval(async () => {
+        try {
+            const resp = await fetch('/api/check_payment_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_id: orderId,
+                    payment_link_id: linkId,
+                    museum: museum,
+                    visitor_name: visitor,
+                    visit_date: document.getElementById('visitDate').value || "Not Selected",
+                    count: qty,
+                    total: total
+                })
+            });
+            const data = await resp.json();
+            
+            if (data.success && data.paid) {
+                clearInterval(payPollInterval);
+                document.getElementById('ticketNum').textContent = data.ticket_no === 'ALREADY_EXISTS' ? 'CONFIRMED' : data.ticket_no;
+                document.getElementById('ticketVisitorText').textContent = visitor || "Valued Guest";
+                document.getElementById('ticketMuseumText').textContent = museum;
+                goStep(4);
+            }
+        } catch (err) {
+            console.error("Polling Error:", err);
+        }
+    }, 4000); // Poll every 4 seconds to be safe
+}
+
+async function demoPaymentFlow(museum, visitor, total, btn, originalContent) {
+    // Enhanced Demo Mode to show the scanner even without real keys
+    document.getElementById('qrPlaceholder').style.display = 'flex';
+    document.getElementById('dynamicQR').style.display = 'none';
+    document.getElementById('payStatusLabel').textContent = "Generating Demo Scanner...";
+    document.getElementById('qrAmount').textContent = total.toFixed(2);
+    
+    await new Promise(r => setTimeout(r, 800));
+    
+    // Use a fixed demo QR or call the backend for a real one with a mock ID
+    const qrResp = await fetch('/api/generate_upi_qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            order_id: "DEMO_" + Date.now(), 
+            amount: total,
+            museum: museum,
+            visitor_name: visitor
+        })
+    });
+
+    if (!qrResp.ok) throw new Error("Backend failed to generate demo QR");
+    
+    const qrData = await qrResp.json();
+    
+    if (qrData.success) {
+        document.getElementById('qrPlaceholder').style.display = 'none';
+        document.getElementById('dynamicQR').src = qrData.qr_code;
+        document.getElementById('dynamicQR').style.display = 'block';
+        document.getElementById('payStatusLabel').textContent = "DEMO SCANNER (Mock)";
+        document.getElementById('payStatusSub').style.display = 'block';
+        document.getElementById('payStatusSub').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Simulating Verification (5s)...';
+        
+        // Start polling even in demo for consistency
+        startPaymentPolling(null, museum, visitor, total, qrData.payment_link_id);
+        
+        // Finalize demo if polling isn't triggered (though it should be)
+        await new Promise(r => setTimeout(r, 5000));
+        
+        // Note: Booking is created in startPaymentPolling for link_id success
+    }
+    
+    btn.innerHTML = originalContent;
+    btn.disabled = false;
 }
 
 async function downloadTicket() {
@@ -285,12 +457,48 @@ function handleKeyPress(e) {
     if (e.key === 'Enter') sendMessage();
 }
 
-function openPaymentModal(amount) {
+function openPaymentModal(amount, museum, ticketCount, visitDate) {
     document.getElementById('bookingModal').style.display = 'flex';
-    selectedPrice = amount;
-    qty = 1;
-    selectedTier = "Direct Booking";
+    
+    // Set variables from chatbot data
+    qty = ticketCount || 1;
+    selectedPrice = amount / qty; 
+    selectedTier = "AI Assistant Booking";
+    
+    // Update the dropdown if a museum was provided
+    if (museum) {
+        const museumSelect = document.getElementById('museumSelect');
+        for (let i = 0; i < museumSelect.options.length; i++) {
+            if (museumSelect.options[i].text === museum) {
+                museumSelect.selectedIndex = i;
+                break;
+            }
+        }
+    }
+
+    // Update the date input if provided
+    if (visitDate) {
+        const dateInput = document.getElementById('visitDate');
+        if (dateInput) {
+            try {
+                dateInput.value = visitDate; 
+            } catch(e) {}
+        }
+    }
+
+    // Sync UI elements
+    const qtyElement = document.getElementById('qtyVal');
+    if (qtyElement) qtyElement.textContent = qty.toString().padStart(2, '0');
+    
+    // Jump to the Checkout step (this triggers a default updateSummary)
     goStep(3);
+
+    // CRITICAL: Override the summary date AFTER goStep(3) because updateSummary() 
+    // reads from the date input which may be empty if the bot provided natural language (e.g. "Tomorrow")
+    if (visitDate) {
+        const sumDate = document.getElementById('sumDate');
+        if (sumDate) sumDate.textContent = visitDate;
+    }
 }
 
 // --- GLOBAL UI EFFECTS ---

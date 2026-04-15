@@ -7,6 +7,10 @@ import time
 from database import get_db_connection
 from langdetect import detect, DetectorFactory
 from deep_translator import GoogleTranslator
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # For consistent language detection results
 DetectorFactory.seed = 0
@@ -16,10 +20,10 @@ MAX_RETRIES = 1
 DEFAULT_RETRY_DELAY = 1.0  # seconds
 MAX_TOKENS = 1000
 MODEL_PRIORITY = [
-    'gemini-1.5-flash-8b',    # Often has separate/higher availability
-    'gemini-flash-latest',    # Shown to work in user logs (returned 429)
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
+    'gemini-2.0-flash',       # Latest verified working model
+    'gemini-flash-latest',    # Stable fallback
+    'gemini-2.0-flash-lite',  # Lightweight fallback
+    'gemini-1.5-flash',       # Legacy fallback
 ]
 
 class MuseumChatbot:
@@ -63,9 +67,9 @@ class MuseumChatbot:
                 'mr_latin': "Namaskar! Mi tumhala kashi madat karu shakto?"
             },
             'booking_start': {
-                'en': "I can definitely help with tickets. Reply with the number of your choice:<br>",
-                'hi_native': "ज़रूर! किस प्रदर्शनी के लिए टिकट चाहिए? नंबर दें:<br>",
-                'hi_latin': "Zaroor! Kaunsi gallery ke liye booking karni hai? Number batayein:<br>",
+                'en': "I can definitely help with tickets. Reply with the number of your choice of Museum Site:<br>",
+                'hi_native': "ज़रूर! किस संग्रहालय के लिए टिकट चाहिए? नंबर दें:<br>",
+                'hi_latin': "Zaroor! Kaunse museum ke liye booking karni hai? Number batayein:<br>",
                 'ta_native': "நிச்சயமாக டிக்கெட்டுகளுக்கு உதவ முடியும். உங்களுக்கு விருப்பமான எண்ணுடன் பதிலளிக்கவும்:<br>",
                 'ta_latin': "Sure! Tickets book panna help pannuven. Choice number-a reply pannunga:<br>",
                 'pa_native': "ਬਿਲਕੁਲ ਮੈਂ ਟਿਕਟਾਂ ਵਿੱਚ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ। ਆਪਣੀ ਪਸੰਦ ਦੇ ਨੰਬਰ ਨਾਲ ਜਵਾਬ ਦਿਓ:<br>",
@@ -79,6 +83,15 @@ class MuseumChatbot:
                 'ta_latin': "Nalla choice: {title}. Ungalukku ethana tickets venum?",
                 'pa_native': "ਵਧੀਆ ਚੋਣ: {title}। ਤੁਸੀਂ ਕਿੰਨੀਆਂ ਟਿਕਟਾਂ ਬੁੱਕ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ?",
                 'pa_latin': "Wadiya choice: {title}. Tusi kinniyan ticktan book karna chaunde ho?"
+            },
+            'ask_date': {
+                'en': "When do you plan to visit {title}? (e.g., Tomorrow, Sunday, or 20th Oct)",
+                'hi_native': "आप {title} कब जाना चाहते हैं? (जैसे: कल, रविवार, या 20 अक्टूबर)",
+                'hi_latin': "Aap {title} kab visit karna chahte hain? (e.g., Kal, Sunday, ya 20th Oct)",
+                'ta_native': "நீங்கள் எப்போது {title} செல்ல திட்டமிட்டுள்ளீர்கள்? (எ.கா., நாளை, ஞாயிறு, அல்லது அக் 20)",
+                'ta_latin': "Neenga eppo {title} visit panna plan panreenga? (e.g., Naalaiku, Sunday, illa 20th Oct)",
+                'pa_native': "ਤੁਸੀਂ {title} ਕਦੋਂ ਜਾਣ ਦੀ ਯੋਜਨਾ ਬਣਾ ਰਹੇ ਹੋ? (ਜਿਵੇਂ: ਕੱਲ੍ਹ, ਐਤਵਾਰ, ਜਾਂ 20 ਅਕਤੂਬਰ)",
+                'pa_latin': "Tusi {title} kadon visit karna chaunde ho? (e.g., Kal, Sunday, ya 20 Oct)"
             },
             'payment_confirm': {
                 'en': "Confirming {count} tickets for '{title}'. Total is ₹{total}. Proceed?",
@@ -113,7 +126,7 @@ class MuseumChatbot:
                 'hi_latin': "Curator's Cafe 2nd floor par hai, shaam 5 baje tak khula rehta hai.",
                 'ta_native': "கியூரேட்டர் உணவகம் 2வது மாடியில் உள்ளது, மாலை 5 மணி வரை திறந்திருக்கும்.",
                 'ta_latin': "Curator's Cafe 2nd floor-la iruku, 5 PM varaikkum open-la irukkum.",
-                'pa_native': "ਕਿਊਰੇਟਰ ਦਾ ਕੈਫੇ ਦੂਜੀ ਮੰਜ਼ਿਲ 'ਤੇ ਹੈ, ਸ਼ਾਮ 5 ਵਜੇ ਤੱਕ ਖੁੱਲ੍ਹਾ ਰਹਿੰਦਾ ਹੈ।",
+                'pa_native': "ਕਿਊਰੇਟਰ ਦਾ ਕੈਫే ਦੂਜੀ ਮੰਜ਼ਿਲ 'ਤੇ ਹੈ, ਸ਼ਾਮ 5 ਵਜੇ ਤੱਕ ਖੁੱਲ੍ਹਾ ਰਹਿੰਦਾ ਹੈ।",
                 'pa_latin': "Curator's Cafe 2nd floor te hai, shyam 5 baje tak khulla rehnda hai."
             },
             'security': {
@@ -125,6 +138,15 @@ class MuseumChatbot:
                 'pa_native': "ਸੁਰੱਖਿਆ ਸਾਡੀ ਤਜੀਹ ਹੈ, 24/7 ਸੀਸੀਟੀਵੀ ਨਿਗਰਾਨੀ ਉਪਲਬਧ ਹੈ।",
                 'pa_latin': "Security sadi priority hai, 24/7 CCTV surveillance hai."
             },
+            'ask_tier': {
+                'en': "Please select the ticket type for these {count} tickets:<br>1. Adult (₹{price} each)<br>2. Student / Child (₹1 each)",
+                'hi_native': "इन {count} टिकटों के लिए प्रकार चुनें:<br>1. व्यक्ति (₹{price} प्रत्येक)<br>2. छात्र / बच्चा (₹1 प्रत्येक)",
+                'hi_latin': "In {count} tickets ke liye type chunein:<br>1. Adult (₹{price} each)<br>2. Student / Child (₹1 each)",
+                'ta_native': "இந்த {count} டிக்கெட்டுகளுக்கான வகையைத் தேர்ந்தெடுக்கவும்:<br>1. பெரியவர் (₹{price})<br>2. மாணவர் / குழந்தை (₹1)",
+                'ta_latin': "Inidhu {count} tickets-kku type choose pannunga:<br>1. Adult (₹{price})<br>2. Student / Child (₹1)",
+                'pa_native': "ਇਹਨਾਂ {count} ਟਿਕਟਾਂ ਲਈ ਕਿਸਮ ਚੁਣੋ:<br>1. ਬਾਲਗ (₹{price} ਹਰੇਕ)<br>2. ਵਿਦਿਆਰਥੀ / ਬੱਚਾ (₹1 ਹਰੇਕ)",
+                'pa_latin': "Inna {count} ticktan layi type chuno:<br>1. Adult (₹{price})<br>2. Student / Child (₹1)"
+            },
             'unknown': {
                 'en': "I'm not sure about that. Try asking about 'exhibitions', 'hours', or 'tickets'!",
                 'hi_native': "क्षमा करें, मुझे समझ नहीं आया। क्या आप 'टिकट' या 'समय' के बारे में पूछ सकते हैं?",
@@ -135,21 +157,34 @@ class MuseumChatbot:
                 'pa_latin': "Samajh nai aayi. Tickets ya timings baare pucho."
             }
         }
-        
-        # Keep greeting map for very fast singular word detection
+
+        # Language-Specific Greeting Map for Instant Detection
         self.greeting_map = {
-            "hello": ("greeting", "en"),
-            "hi": ("greeting", "en"),
-            "hey": ("greeting", "en"),
-            "good morning": ("greeting", "en"),
-            "namaste": ("greeting", "hi"),
-            "namaskar": ("greeting", "hi"),
-            "vanakkam": ("greeting", "ta"),
-            "namaskaram": ("greeting", "ml"),
-            "namaskara": ("greeting", "kn"), 
-            "nomoskar": ("greeting", "bn"),
-            "sat sri akal": ("greeting", "pa"),
-            "aadab": ("greeting", "ur")
+            'hi': ('greeting', 'en'),
+            'hello': ('greeting', 'en'),
+            'hey': ('greeting', 'en'),
+            'namaste': ('greeting', 'hi'),
+            'namastey': ('greeting', 'hi'),
+            'namaskar': ('greeting', 'hi'),
+            'नमस्ते': ('greeting', 'hi'),
+            'नमस्कार': ('greeting', 'hi'),
+            'vanakkam': ('greeting', 'ta'),
+            'வணக்கம்': ('greeting', 'ta'),
+            'sat sri akal': ('greeting', 'pa'),
+            'ਸਤ ਸ੍ਰੀ ਅਕਾਲ': ('greeting', 'pa'),
+            'nomoskar': ('greeting', 'bn'),
+            'নমস্কার': ('greeting', 'bn'),
+            'namaskara': ('greeting', 'kn'),
+            'నమస్తే': ('greeting', 'te'),
+            'నమస్కారం': ('greeting', 'te'),
+            'ನಮಸ್ಕಾರ': ('greeting', 'kn'),
+            'namaskaram': ('greeting', 'ml'),
+            'നമസ്കാരം': ('greeting', 'ml'),
+            'kem cho': ('greeting', 'gu'),
+            'કેમ છો': ('greeting', 'gu'),
+            'નમસ્તે': ('greeting', 'gu'),
+            'namskar': ('greeting', 'mr'),
+            'नमस्कार': ('greeting', 'mr')
         }
 
     def _initialize_ai(self):
@@ -429,8 +464,8 @@ MULTILINGUAL SUPPORT & SESSION LOCK:
     def process_message(self, message, state_data):
         state = state_data.get('state', 'idle')
         
-        # 0. High-Fidelity Normalization (Production Grade)
-        clean_msg = re.sub(r'[^\w\s]', '', message.lower()).strip()
+        # 0. Basic Normalization - Preserve Unicode but remove punctuation
+        clean_msg = re.sub(r'[!?,.;:।॥]', '', message.lower()).strip()
         clean_msg = re.sub(r'\s+', ' ', clean_msg)
 
         # 1. Session-Based Language & Script Locking
@@ -449,7 +484,7 @@ MULTILINGUAL SUPPORT & SESSION LOCK:
         # We check all matching greetings and prefer the one that matches our detected current_input_lang
         matches = []
         for key, (template_key, lang_hint) in self.greeting_map.items():
-            if re.search(fr'\b{key}\b', clean_msg):
+            if re.search(fr'(^|\s){re.escape(key)}(\s|$)', clean_msg):
                 matches.append((key, template_key, lang_hint))
         
         if matches:
@@ -489,8 +524,15 @@ MULTILINGUAL SUPPORT & SESSION LOCK:
                 conn.close()
                 if exhibition:
                     state_data['exhibition'] = dict(exhibition)
-                    state_data['state'] = 'awaiting_ticket_count'
-                    return self._get_localized_response('ticket_count', user_lang, final_script_data, title=exhibition['title']), state_data
+                    state_data['state'] = 'awaiting_visit_date'
+                    return self._get_localized_response('ask_date', user_lang, final_script_data, title=exhibition['title']), state_data
+
+        elif state == 'awaiting_visit_date':
+            # Simple date capture - in a real app, you'd use a date parser
+            # For now, we take the message as the date string
+            state_data['visit_date'] = message.strip()
+            state_data['state'] = 'awaiting_ticket_count'
+            return self._get_localized_response('ticket_count', user_lang, final_script_data, title=state_data['exhibition']['title']), state_data
 
         elif state == 'awaiting_ticket_count':
             match = re.search(r'\b\d+\b', translated_msg)
@@ -498,15 +540,46 @@ MULTILINGUAL SUPPORT & SESSION LOCK:
                 count = int(match.group())
                 if count > 0:
                     state_data['count'] = count
-                    state_data['state'] = 'awaiting_payment_confirm'
-                    total = count * state_data['exhibition']['price']
-                    state_data['total'] = total
-                    
-                    # We keep the button HTML as is since it has specific function calls
-                    confirm_text = self._get_localized_response('payment_confirm', user_lang, final_script_data, 
-                                                                count=count, title=state_data['exhibition']['title'], total=total)
-                    btn_html = f"<div style='margin-top:10px;'><button class='cta-btn' onclick='openPaymentModal({total})'>Proceed to Ledger (₹{total})</button></div>"
-                    return f"{confirm_text}<br>{btn_html}", state_data
+                    state_data['state'] = 'awaiting_ticket_tier'
+                    return self._get_localized_response('ask_tier', user_lang, final_script_data, count=count, price=state_data['exhibition']['price']), state_data
+
+        elif state == 'awaiting_ticket_tier':
+            # Logic to handle 1 (Adult) or 2 (Student)
+            total = 0
+            tier_name = "Adult"
+            
+            if "2" in clean_msg or "student" in msg_lower or "child" in msg_lower or "bacha" in msg_lower:
+                total = state_data['count'] * 1
+                tier_name = "Student/Child"
+            else:
+                # Default to Adult if they say 1 or something else
+                total = state_data['count'] * state_data['exhibition']['price']
+            
+            state_data['total'] = total
+            state_data['tier'] = tier_name
+            state_data['state'] = 'awaiting_payment_confirm'
+            
+            confirm_text = self._get_localized_response('payment_confirm', user_lang, final_script_data, 
+                                                        count=state_data['count'], title=state_data['exhibition']['title'], total=total)
+            
+            museum_title = state_data['exhibition']['title'].replace("'", "\\'")
+            visitor_name = state_data.get('visitor_name', 'Visitor').replace("'", "\\'")
+            visit_date = state_data.get('visit_date', 'Not Selected').replace("'", "\\'")
+            count = state_data['count']
+            
+            btn_html = f"<div style='margin-top:10px;'><button class='cta-btn' onclick='openPaymentModal({total}, \"{museum_title}\", {count}, \"{visit_date}\", \"{visitor_name}\")'>Proceed to Ledger (₹{total})</button></div>"
+            return f"{confirm_text}<br>Category: {tier_name}<br>{btn_html}", state_data
+
+        # 1.5 Handle Direct Booking Intents (High Priority)
+        if re.search(r'\b(book|ticket|buy|reserve|yatra|ticketen)\b', msg_lower):
+            state_data['state'] = 'awaiting_exhibition_selection'
+            conn = get_db_connection()
+            exhibs = conn.execute('SELECT * FROM exhibitions').fetchall()
+            conn.close()
+            translated_resp = self._get_localized_response('booking_start', user_lang, final_script_data)
+            for e in exhibs: 
+                translated_resp += f"<b>{e['id']}. {e['title']}</b> - ₹{e['price']}<br>"
+            return translated_resp, state_data
 
         # 2. Generative AI Logic with 429 Resilience
         if self.client and self.model_id:
@@ -573,17 +646,6 @@ MULTILINGUAL SUPPORT & SESSION LOCK:
         if re.search(r'\b(hi|hello|hey|namaste|greetings|pranam|aadab|shubh)\b', msg_lower):
             return self._get_localized_response('greeting', user_lang, final_script_data), state_data
         
-        # Booking
-        if re.search(r'\b(book|ticket|buy|reserve|yatra|ticketen)\b', msg_lower):
-            state_data['state'] = 'awaiting_exhibition_selection'
-            conn = get_db_connection()
-            exhibs = conn.execute('SELECT * FROM exhibitions').fetchall()
-            conn.close()
-            translated_resp = self._get_localized_response('booking_start', user_lang, final_script_data)
-            for e in exhibs: 
-                translated_resp += f"<b>{e['id']}. {e['title']}</b> - ₹{e['price']}<br>"
-            return translated_resp, state_data
-            
         # Quick Info
         if 'hour' in msg_lower or 'time' in msg_lower or 'open' in msg_lower:
             return self._get_localized_response('hours', user_lang, final_script_data), state_data
@@ -602,11 +664,12 @@ MULTILINGUAL SUPPORT & SESSION LOCK:
 
     def process_payment_success(self, state_data, user_id):
         ticket_hash = str(uuid.uuid4())[:8].upper()
+        visit_date = state_data.get('visit_date', 'Not Selected')
         
         conn = get_db_connection()
         conn.execute(
-            'INSERT INTO bookings (user_id, visitor_name, exhibition_id, num_tickets, total_price, ticket_hash) VALUES (?, ?, ?, ?, ?, ?)',
-            (user_id, 'Heritage Guest', state_data['exhibition']['id'], state_data['count'], state_data['total'], ticket_hash)
+            'INSERT INTO bookings (user_id, visitor_name, visit_date, exhibition_id, num_tickets, total_price, ticket_hash) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (user_id, 'Heritage Guest', visit_date, state_data['exhibition']['id'], state_data['count'], state_data['total'], ticket_hash)
         )
         conn.commit()
         conn.close()

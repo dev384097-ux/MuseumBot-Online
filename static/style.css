@@ -261,9 +261,8 @@ h2 em {
 
 /* FEATURES GRID */
 .feature-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 30px;
 }
 
@@ -275,8 +274,6 @@ h2 em {
     transition: var(--transition-smooth);
     position: relative;
     overflow: hidden;
-    flex: 1 1 350px;
-    max-width: 400px; /* Constrain to look uniform */
 }
 
 .feature-card:hover {
@@ -601,6 +598,7 @@ h2 em {
     }
     .department-row { margin-bottom: 80px; }
     .highlight-item { justify-content: center; }
+    .feature-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 
@@ -1101,6 +1099,7 @@ footer {
     .nav-links { display: none; }
     .hero-content h1 { font-size: 3rem; }
     .footer-grid { grid-template-columns: 1fr; gap: 40px; }
+    .feature-grid { grid-template-columns: 1fr; }
 }
 
 /* --- PREMIUM MODAL SYSTEM --- */
@@ -1384,6 +1383,24 @@ footer {
 .ticket-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px; }
 .ticket-value { font-size: 1.1rem; font-weight: 700; color: white; }
 
+.ticket-bottom {
+    text-align: center;
+}
+
+#ticketMuseumText {
+    font-size: 1.4rem;
+    font-family: var(--font-heading);
+    color: white;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.ticket-footer {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
 .modal-footer-new {
     margin-top: auto;
     display: flex; gap: 15px;
@@ -1495,4 +1512,46 @@ footer {
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+/* DYNAMIC QR SCANNER STYLES */
+.qr-container-new {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 25px;
+    background: rgba(10, 10, 9, 0.4);
+    border-radius: 15px;
+    border: 1px solid var(--border-gold);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: var(--transition-smooth);
+}
+
+.qr-scan-label {
+    margin-top: 15px;
+    font-family: var(--font-heading);
+    color: var(--text-primary);
+    font-size: 1rem;
+    letter-spacing: 1px;
+}
+
+#payStatusSub {
+    color: var(--primary-gold);
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0% { opacity: 0.6; transform: scale(0.98); }
+    50% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.6; transform: scale(0.98); }
+}
+
+#dynamicQR {
+    box-shadow: 0 0 20px rgba(197, 160, 89, 0.3);
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }

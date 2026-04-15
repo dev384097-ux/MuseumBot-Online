@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     
     <title>MuseumBot | AI-Driven Ticketing Platform</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Marcellus&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        window.RZP_KEY_ID = "{{ rzp_key_id }}";
+    </script>
 </head>
 <body>
     <!-- NAVIGATION -->
@@ -365,9 +369,9 @@
                                 <span class="ticket-price-val">₹100</span>
                                 <span class="ticket-tier-name">Adult Member</span>
                             </div>
-                            <div class="ticket-card-mini" onclick="selectTicket(this, 50, 'Student')">
-                                <div class="ticket-badge">Muted</div>
-                                <span class="ticket-price-val">₹50</span>
+                            <div class="ticket-card-mini" onclick="selectTicket(this, 1, 'Student')">
+                                <div class="ticket-badge">Discounted</div>
+                                <span class="ticket-price-val">₹1</span>
                                 <span class="ticket-tier-name">Student / Child</span>
                             </div>
                         </div>
@@ -399,11 +403,17 @@
                         </div>
                         <div class="payment-visual" id="payUPI">
                             <div class="qr-container-new">
-                                <img src="/static/my_scanner.png.jpeg" alt="My UPI Scanner" style="width:150px; height:150px; border-radius:10px; border:2px solid var(--primary-gold);">
-                                <span class="qr-scan-label">Scan with GPay / PhonePe</span>
-                                <div style="margin-top: 15px; width: 100%;">
-                                    <input type="text" id="utrInput" class="form-input" placeholder="Enter 12-digit UPI / UTR Reference No." style="width: 100%; border: 1px solid var(--border-gold); background: #1a1a2e; padding: 10px; color: white; border-radius: 5px; text-align: center;">
-                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Required to verify successful transfer</p>
+                                <div id="qrPlaceholder" style="width:150px; height:150px; display:flex; align-items:center; justify-content:center; background:#11111d; border:2px dashed var(--border-gold); border-radius:10px;">
+                                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary-gold);"></i>
+                                </div>
+                                <img id="dynamicQR" src="" alt="Dynamic UPI Scanner" style="display:none; width:150px; height:150px; border-radius:10px; border:2px solid var(--primary-gold);">
+                                <span class="qr-scan-label" id="payStatusLabel">Generating QR...</span>
+                                <div id="payStatusSub" style="margin-top: 5px; font-size: 0.8rem; color: var(--primary-gold); font-weight: bold; display:none;">
+                                    <i class="fa-solid fa-circle-notch fa-spin"></i> Awaiting Payment...
+                                </div>
+                                <div style="margin-top: 15px; width: 100%; border-top: 1px solid #333; padding-top: 15px;">
+                                    <p style="font-size: 0.85rem; margin-bottom: 5px;">Amount to Pay: <strong style="color: var(--primary-gold);">₹<span id="qrAmount">0.00</span></strong></p>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted);">Scan this QR with GPay, PhonePe or Paytm to complete your booking instantly.</p>
                                 </div>
                             </div>
                         </div>
@@ -560,6 +570,7 @@
 
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="/static/main.js"></script>
 </body>
 </html>
